@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "Logjar",
+  "version": "1.0.0",
+  "description": "Optional Logjar Chrome extension for frontend log capture.",
+  "permissions": ["storage", "tabs"],
+  "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
+  "background": {
+    "service_worker": "background.iife.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Logjar"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.iife.js"],
+      "run_at": "document_start"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["page-bridge.iife.js"],
+      "matches": ["<all_urls>"]
+    }
+  ]
+}

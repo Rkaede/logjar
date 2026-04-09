@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Logjar</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "SF Pro Text", "Segoe UI", sans-serif;
+        line-height: 1.4;
+      }
+
+      body {
+        margin: 0;
+        width: 320px;
+        background: linear-gradient(180deg, #f8f8f4 0%, #ebe7dd 100%);
+        color: #1e1c17;
+      }
+
+      main {
+        padding: 16px;
+      }
+
+      h1 {
+        margin: 0 0 4px;
+        font-size: 18px;
+      }
+
+      p {
+        margin: 0;
+      }
+
+      .lede {
+        color: #5e5544;
+        font-size: 13px;
+        margin-bottom: 14px;
+      }
+
+      .panel {
+        border: 1px solid rgba(34, 30, 21, 0.12);
+        border-radius: 14px;
+        background: rgba(255, 255, 255, 0.72);
+        padding: 12px;
+        box-shadow: 0 12px 28px rgba(48, 41, 31, 0.08);
+      }
+
+      .panel + .panel {
+        margin-top: 10px;
+      }
+
+      .toggle {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .toggle input {
+        width: 18px;
+        height: 18px;
+      }
+
+      label {
+        display: block;
+        font-size: 12px;
+        color: #5e5544;
+        margin-bottom: 6px;
+      }
+
+      input[type="number"] {
+        width: 100%;
+        border: 1px solid rgba(34, 30, 21, 0.18);
+        border-radius: 10px;
+        padding: 10px 12px;
+        box-sizing: border-box;
+        font: inherit;
+        background: #fffdfa;
+      }
+
+      .status {
+        font-size: 12px;
+        color: #3f392f;
+      }
+
+      .status + .status {
+        margin-top: 6px;
+      }
+
+      #page-label {
+        font-size: 12px;
+        color: #3f392f;
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Logjar</h1>
+      <p class="lede">Optional per-tab frontend capture for the local Logjar server.</p>
+
+      <section class="panel">
+        <p id="page-label">Loading current tab...</p>
+        <label class="toggle">
+          <input id="capture-toggle" type="checkbox" disabled />
+          <span>Capture this tab</span>
+        </label>
+
+        <label for="port-input">Logjar port</label>
+        <input id="port-input" min="1" step="1" type="number" value="8797" />
+      </section>
+
+      <section class="panel">
+        <p class="status" id="server-status">Server status: checking...</p>
+        <p class="status" id="delivery-status">Last delivery error: none</p>
+      </section>
+    </main>
+    <script src="./popup.iife.js"></script>
+  </body>
+</html>

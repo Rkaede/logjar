@@ -1,0 +1,139 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Release tag to simulate, for example v1.2.3
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Vite+
+        uses: voidzero-dev/setup-vp@v1
+        with:
+          node-version: "22"
+          cache: true
+          registry-url: "https://registry.npmjs.org"
+          run-install: true
+
+      - name: Resolve release settings
+        id: release_meta
+        env:
+          INPUT_RELEASE_TAG: ${{ github.event.inputs.release_tag }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            release_tag="$INPUT_RELEASE_TAG"
+            dry_run="true"
+          else
+            release_tag="${GITHUB_REF_NAME}"
+            dry_run="false"
+          fi
+
+          # Derive the npm dist-tag. Prerelease versions (vX.Y.Z-<id>...) use the
+          # prerelease identifier so `latest` never points at an unstable build.
+          version="${release_tag#v}"
+          prerelease="${version#*-}"
+          if [ "$prerelease" = "$version" ]; then
+            dist_tag="latest"
+          else
+            dist_tag="${prerelease%%.*}"
+          fi
+
+          printf 'release_tag=%s\n' "$release_tag" >> "$GITHUB_OUTPUT"
+          printf 'dry_run=%s\n' "$dry_run" >> "$GITHUB_OUTPUT"
+          printf 'dist_tag=%s\n' "$dist_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Validate release tag against CLI version
+        run: node ./scripts/release/prepare-extension-release.mjs "${{ steps.release_meta.outputs.release_tag }}"
+
+      - name: Validate workspace
+        run: vp check
+
+      - name: Run tests
+        run: vp test
+
+      - name: Build CLI package
+        run: vp run logjar#build
+
+      - name: Simulate CLI publish to npm
+        if: steps.release_meta.outputs.dry_run == 'true'
+        working-directory: apps/cli
+        run: |
+          mkdir -p ../../artifacts
+          vp pm publish -- --dry-run --access public --no-git-checks --tag "${{ steps.release_meta.outputs.dist_tag }}" \
+            | tee "../../artifacts/npm-publish-dry-run-${{ steps.release_meta.outputs.release_tag }}.txt"
+
+      - name: Publish CLI package to npm
+        if: steps.release_meta.outputs.dry_run != 'true'
+        working-directory: apps/cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: vp pm publish -- --access public --provenance --no-git-checks --tag "${{ steps.release_meta.outputs.dist_tag }}"
+
+      - name: Sync extension version to release tag
+        run: node ./scripts/release/prepare-extension-release.mjs "${{ steps.release_meta.outputs.release_tag }}" --write
+
+      - name: Build browser extension
+        run: vp run logjar-extension#build
+
+      - name: Package extension release asset
+        run: |
+          mkdir -p artifacts
+          archive="logjar-extension-${{ steps.release_meta.outputs.release_tag }}.zip"
+          cd apps/extension/dist
+          zip -r "../../../artifacts/${archive}" .
+
+      - name: Upload dry-run artifacts
+        if: steps.release_meta.outputs.dry_run == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-dry-run-${{ steps.release_meta.outputs.release_tag }}
+          path: |
+            artifacts/logjar-extension-${{ steps.release_meta.outputs.release_tag }}.zip
+            artifacts/npm-publish-dry-run-${{ steps.release_meta.outputs.release_tag }}.txt
+          if-no-files-found: error
+
+      - name: Create or update GitHub release
+        if: steps.release_meta.outputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          release_tag="${{ steps.release_meta.outputs.release_tag }}"
+          archive="artifacts/logjar-extension-${{ steps.release_meta.outputs.release_tag }}.zip"
+          printf '%s\n' \
+            'Published the `logjar` npm package from `apps/cli`.' \
+            '' \
+            "Attached \`$(basename "$archive")\` as the developer-friendly browser extension build from \`apps/extension/dist/\`." \
+            '' \
+            'To use the extension locally:' \
+            '1. Download the zip asset.' \
+            '2. Extract it to a folder on disk.' \
+            '3. Open `chrome://extensions` in Chrome or Chromium.' \
+            '4. Turn on Developer mode.' \
+            '5. Choose Load unpacked and select the extracted folder.' \
+            > release-notes.md
+
+          if gh release view "$release_tag" >/dev/null 2>&1; then
+            gh release edit "$release_tag" --title "$release_tag" --notes-file release-notes.md
+            gh release upload "$release_tag" "$archive" --clobber
+          else
+            gh release create "$release_tag" "$archive" --title "$release_tag" --notes-file release-notes.md
+          fi

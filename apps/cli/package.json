@@ -1,0 +1,66 @@
+{
+  "name": "logjar",
+  "version": "0.0.1-alpha.1",
+  "description": "Unified frontend + backend log capture for dev environments. Run `logjar -- your-command` to intercept all logs into a single rolling file that coding agents can read.",
+  "keywords": [
+    "agent",
+    "ai",
+    "cli",
+    "debugging",
+    "dev-tools",
+    "logging"
+  ],
+  "homepage": "https://github.com/Rkaede/logjar#readme",
+  "bugs": {
+    "url": "https://github.com/Rkaede/logjar/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Rkaede/logjar.git"
+  },
+  "bin": {
+    "logjar": "./dist/cli/index.mjs"
+  },
+  "files": [
+    "dist",
+    "src/client/snippet.js"
+  ],
+  "type": "module",
+  "main": "./dist/client/index.mjs",
+  "types": "./dist/client/index.d.mts",
+  "exports": {
+    ".": {
+      "types": "./dist/client/index.d.mts",
+      "import": "./dist/client/index.mjs"
+    },
+    "./client": {
+      "types": "./dist/client/index.d.mts",
+      "import": "./dist/client/index.mjs"
+    },
+    "./snippet": "./src/client/snippet.js",
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vp pack src/client/index.ts src/cli/index.ts --dts",
+    "dev": "vp pack src/client/index.ts src/cli/index.ts --dts --watch",
+    "test": "vp test",
+    "check": "vp check",
+    "prepublishOnly": "vp run build",
+    "prepare": "vp config"
+  },
+  "devDependencies": {
+    "@types/node": "^25.5.0",
+    "@typescript/native-preview": "7.0.0-dev.20260328.1",
+    "bumpp": "^11.0.1",
+    "typescript": "^6.0.2",
+    "vite-plus": "^0.1.14"
+  },
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "packageManager": "pnpm@10.33.0"
+}
