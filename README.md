@@ -4,7 +4,7 @@ Unified frontend + backend log capture for dev environments. A single rolling lo
 
 ## The Problem
 
-When a coding agent is helping you debug, it can't see your terminal output or browser console. You end up copy-pasting error messages back and forth. **Logjar** fixes this by writing all logs — backend stdout/stderr _and_ frontend console output — into one small, rolling file the agent can read directly.
+When a coding agent is helping you debug, it can't see your terminal output or browser console. You end up copy-pasting error messages back and forth. **Logjar** fixes this by writing all logs (backend stdout/stderr _and_ frontend console output) into one small, rolling file the agent can read directly.
 
 ## Quick Start
 
@@ -28,7 +28,7 @@ That's it for the backend. All stdout/stderr from your command is captured.
 
 Choose one of these options:
 
-**Option A — ES module import** (React, Vue, Svelte, etc.)
+**Option A: ES module import** (React, Vue, Svelte, etc.)
 
 ```js
 // Add to your app's entry point (e.g., main.ts, _app.tsx)
@@ -39,13 +39,13 @@ import { initLogjar } from "logjar/client";
 initLogjar({ app: "web", levels: ["log", "info", "warn", "error", "debug"] });
 ```
 
-**Option B — Script tag**
+**Option B: Script tag**
 
 ```html
 <script src="./node_modules/logjar/src/client/snippet.js"></script>
 ```
 
-**Option C — Conditional (only in dev)**
+**Option C: Conditional (only in dev)**
 
 ```js
 if (process.env.NODE_ENV === "development") {
@@ -53,7 +53,7 @@ if (process.env.NODE_ENV === "development") {
 }
 ```
 
-**Option D — Chrome/Chromium extension** (no app code changes)
+**Option D: Chrome/Chromium extension** (no app code changes)
 
 If you do not want to import `logjar/client` into the app, you can use the optional browser extension instead. Download the latest asset from [GitHub Releases](https://github.com/Rkaede/logjar/releases), extract it, then load it locally:
 
