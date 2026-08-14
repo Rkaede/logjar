@@ -78,15 +78,13 @@ jobs:
         working-directory: apps/cli
         run: |
           mkdir -p ../../artifacts
-          vp pm publish -- --dry-run --access public --no-git-checks --tag "${{ steps.release_meta.outputs.dist_tag }}" \
+          vp dlx npm@11.19.0 publish --dry-run --access public --provenance --tag "${{ steps.release_meta.outputs.dist_tag }}" \
             | tee "../../artifacts/npm-publish-dry-run-${{ steps.release_meta.outputs.release_tag }}.txt"
 
       - name: Publish CLI package to npm
         if: steps.release_meta.outputs.dry_run != 'true'
         working-directory: apps/cli
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: vp pm publish -- --access public --provenance --no-git-checks --tag "${{ steps.release_meta.outputs.dist_tag }}"
+        run: vp dlx npm@11.19.0 publish --access public --provenance --tag "${{ steps.release_meta.outputs.dist_tag }}"
 
       - name: Sync extension version to release tag
         run: node ./scripts/release/prepare-extension-release.mjs "${{ steps.release_meta.outputs.release_tag }}" --write

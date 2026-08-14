@@ -1,6 +1,6 @@
 {
   "name": "logjar",
-  "version": "0.0.0-pre.2",
+  "version": "0.0.0-pre.3",
   "description": "Unified frontend + backend log capture for dev environments. Run `logjar -- your-command` to intercept all logs into a single rolling file that coding agents can read.",
   "keywords": [
     "agent",
@@ -20,7 +20,7 @@
     "url": "git+https://github.com/Rkaede/logjar.git"
   },
   "bin": {
-    "logjar": "./dist/cli/index.mjs"
+    "logjar": "dist/cli/index.mjs"
   },
   "files": [
     "dist",
