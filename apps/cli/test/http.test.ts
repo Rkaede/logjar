@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vite-plus/test";
-import { formatFrontendEntries, isTrustedOriginHeader } from "../src/server/http.ts";
+import {
+  formatFrontendEntries,
+  getListeningPort,
+  isTrustedOriginHeader,
+  startServer,
+} from "../src/server/http.ts";
 
 describe("formatFrontendEntries", () => {
   it("formats single payloads with extension metadata", () => {
@@ -40,5 +45,24 @@ describe("isTrustedOriginHeader", () => {
   it("rejects non-loopback origins", () => {
     expect(isTrustedOriginHeader("https://example.com")).toBe(false);
     expect(isTrustedOriginHeader("notaurl")).toBe(false);
+  });
+});
+
+describe("startServer", () => {
+  it("resolves an actual listening port when configured with port 0", async () => {
+    const server = await startServer({ port: 0, onEntry: () => {} });
+
+    try {
+      const port = getListeningPort(server);
+      expect(port).toBeGreaterThan(0);
+
+      const response = await fetch(`http://localhost:${port}/__logjar`);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ status: "logjar running", port });
+    } finally {
+      await new Promise<void>((resolve, reject) => {
+        server.close((error) => (error ? reject(error) : resolve()));
+      });
+    }
   });
 });

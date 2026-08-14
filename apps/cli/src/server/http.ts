@@ -17,7 +17,7 @@ const MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MB
  *
  * Calls `onEntry(formattedLine)` for every received log line.
  */
-export function startServer({ port, onEntry }: StartServerOptions): http.Server {
+export async function startServer({ port, onEntry }: StartServerOptions): Promise<http.Server> {
   const server = http.createServer((req, res) => {
     if (!isTrustedOriginHeader(req.headers.origin)) {
       res.writeHead(403, { "Content-Type": "application/json" });
@@ -67,7 +67,7 @@ export function startServer({ port, onEntry }: StartServerOptions): http.Server 
 
     if (req.url === LOG_ENDPOINT && req.method === "GET") {
       res.writeHead(200, corsHeaders(req, { "Content-Type": "application/json" }));
-      res.end(JSON.stringify({ status: "logjar running", port }));
+      res.end(JSON.stringify({ status: "logjar running", port: getListeningPort(server) }));
       return;
     }
 
@@ -76,11 +76,28 @@ export function startServer({ port, onEntry }: StartServerOptions): http.Server 
     res.end();
   });
 
-  server.listen(port, LOOPBACK_HOST, () => {
-    // silent start — the CLI prints its own banner
+  await new Promise<void>((resolve, reject) => {
+    const handleError = (error: Error): void => {
+      reject(error);
+    };
+
+    server.once("error", handleError);
+    server.listen(port, LOOPBACK_HOST, () => {
+      server.off("error", handleError);
+      resolve();
+    });
   });
 
   return server;
+}
+
+export function getListeningPort(server: http.Server): number {
+  const address = server.address();
+  if (address == null || typeof address === "string") {
+    throw new Error("[logjar] HTTP server is not listening on a TCP port");
+  }
+
+  return address.port;
 }
 
 export function formatFrontendEntries(payload: unknown): string[] {

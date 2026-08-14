@@ -11,7 +11,8 @@ import {
 } from "../shared/constants.ts";
 import { RollingBuffer } from "../shared/rolling-buffer.ts";
 import { LogWriter } from "../server/writer.ts";
-import { startServer } from "../server/http.ts";
+import { getListeningPort, startServer } from "../server/http.ts";
+import { createChildEnvironment, resolveConfiguredPort } from "./config.ts";
 
 // ── Parse arguments ────────────────────────────────────────────────
 const argv = process.argv.slice(2);
@@ -23,13 +24,19 @@ function flag(name: string, fallback: string | number): string {
   return val ?? String(fallback);
 }
 
-const port = Number(flag("--port", DEFAULT_PORT));
+let configuredPort: number;
+try {
+  configuredPort = resolveConfiguredPort(argv);
+} catch (error) {
+  console.error((error as Error).message);
+  process.exit(1);
+}
+flag("--port", configuredPort);
 const logFile = flag("--out", DEFAULT_LOG_FILE);
 const maxAge = Number(flag("--max-age", DEFAULT_MAX_AGE_MS / 1000)) * 1000; // user gives seconds
 const maxSize = Number(flag("--max-size", DEFAULT_MAX_SIZE_BYTES / 1024)) * 1024; // user gives KB
 
 for (const [name, value] of [
-  ["--port", port],
   ["--max-age", maxAge],
   ["--max-size", maxSize],
 ] as const) {
@@ -45,7 +52,7 @@ const childArgs = dashIdx !== -1 ? argv.slice(dashIdx + 1) : argv;
 
 if (childArgs.length === 0) {
   console.error(
-    `Usage: logjar [options] -- <command>\n\nOptions:\n  --port <n>      HTTP port for frontend logs (default: ${DEFAULT_PORT})\n  --out <path>    Log file path (default: ${DEFAULT_LOG_FILE})\n  --max-age <s>   Rolling window in seconds (default: 900)\n  --max-size <kb> Max log file size in KB (default: 200)\n\nExample:\n  logjar -- turbo run dev --parallel`,
+    `Usage: logjar [options] -- <command>\n\nOptions:\n  --port <n>      HTTP port for frontend logs (env: LOGJAR_PORT; default: ${DEFAULT_PORT}; 0: auto)\n  --out <path>    Log file path (default: ${DEFAULT_LOG_FILE})\n  --max-age <s>   Rolling window in seconds (default: 900)\n  --max-size <kb> Max log file size in KB (default: 200)\n\nExample:\n  logjar -- turbo run dev --parallel`,
   );
   process.exit(1);
 }
@@ -60,18 +67,15 @@ function ingest(line: string): void {
 }
 
 // ── Start HTTP server for frontend logs ─────────────────────────────
-const server = startServer({ port, onEntry: ingest });
+const server = await startServer({ port: configuredPort, onEntry: ingest });
+const actualPort = getListeningPort(server);
 
 // ── Spawn the child process ─────────────────────────────────────────
 const [cmd, ...args] = childArgs;
 const child = spawn(cmd, args, {
   stdio: ["inherit", "pipe", "pipe"],
   shell: true,
-  env: {
-    ...process.env,
-    LOGJAR_PORT: String(port),
-    LOGJAR_URL: `http://localhost:${port}`,
-  },
+  env: createChildEnvironment(process.env, actualPort),
 });
 
 function handleOutput(stream: NodeJS.ReadableStream, streamName: "stdout" | "stderr"): void {
@@ -102,7 +106,7 @@ handleOutput(child.stderr!, "stderr");
 
 // ── Banner ──────────────────────────────────────────────────────────
 console.error(
-  `[logjar] Capturing logs → ${logFile} (port ${port}, window ${maxAge / 1000}s, cap ${maxSize / 1024}KB)`,
+  `[logjar] Capturing logs → ${logFile} (port ${actualPort}, window ${maxAge / 1000}s, cap ${maxSize / 1024}KB)`,
 );
 console.error(`[logjar] Frontend snippet: import 'logjar/client' or add <script> tag`);
 

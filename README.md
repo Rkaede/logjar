@@ -24,6 +24,24 @@ npx logjar -- turbo run dev --parallel
 
 That's it for the backend. All stdout/stderr from your command is captured.
 
+The HTTP port can also be configured with `LOGJAR_PORT`:
+
+```bash
+LOGJAR_PORT=9000 npx logjar -- npm run dev
+```
+
+An explicit `--port` takes precedence over `LOGJAR_PORT`, which takes precedence over the default
+port `8797`. Ports must be integers from `0` through `65535`. Use port `0` to let the operating
+system choose an available port:
+
+```bash
+npx logjar --port 0 -- npm run dev
+```
+
+Logjar waits for the HTTP server to listen, then provides the resolved port to the wrapped command
+as `LOGJAR_PORT` (and in the existing `LOGJAR_URL`). This means a wrapped command receives the real
+ephemeral port rather than `0`.
+
 ### 2. Add frontend capture
 
 Choose one of these options:
@@ -37,6 +55,29 @@ import "logjar/client";
 // Or initialize with custom options
 import { initLogjar } from "logjar/client";
 initLogjar({ app: "web", levels: ["log", "info", "warn", "error", "debug"] });
+```
+
+Browser code cannot read the wrapped command's environment automatically. When using a custom or
+ephemeral port, expose `LOGJAR_PORT` through your application's normal public-runtime or bundler
+configuration and pass it to the client:
+
+```js
+import { initLogjar } from "logjar/client";
+
+initLogjar({ port: import.meta.env.LOGJAR_PORT });
+```
+
+For example, a Vite application launched by Logjar can explicitly map the injected variable in its
+own `vite.config.ts` without Logjar defining a `VITE_*` variable:
+
+```ts
+import { defineConfig } from "vite";
+
+export default defineConfig({
+  define: {
+    "import.meta.env.LOGJAR_PORT": JSON.stringify(process.env.LOGJAR_PORT),
+  },
+});
 ```
 
 **Option B: Script tag**
@@ -88,7 +129,7 @@ Update your `.gitignore` to exclude the logjar directory:
 logjar [options] -- <command>
 
 Options:
-  --port <n>       HTTP port for frontend logs  (default: 8797)
+  --port <n>       HTTP port for frontend logs  (env: LOGJAR_PORT; default: 8797; 0: auto)
   --out <path>     Log file path                (default: .logjar/logs.txt)
   --max-age <s>    Rolling window in seconds    (default: 900)
   --max-size <kb>  Max log file size in KB      (default: 200)
