@@ -29,9 +29,9 @@ describe("buildChildEnv", () => {
 });
 
 describe("formatOutputLine", () => {
-  it("labels stdout and stderr lines", () => {
-    expect(formatOutputLine("stdout", "ready")).toMatch(/^\[.+\] \[BE\] \[INFO\] ready$/);
-    expect(formatOutputLine("stderr", "oops")).toMatch(/^\[.+\] \[BE\] \[ERROR\] oops$/);
+  it("labels each line with the stream it came from", () => {
+    expect(formatOutputLine("stdout", "ready")).toMatch(/^\[.+\] \[BE\] \[STDOUT\] ready$/);
+    expect(formatOutputLine("stderr", "building")).toMatch(/^\[.+\] \[BE\] \[STDERR\] building$/);
   });
 
   it("removes colour codes", () => {

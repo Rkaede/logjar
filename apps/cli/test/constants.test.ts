@@ -55,9 +55,9 @@ describe("formatEntry", () => {
     expect(entry).toMatch(/^\[.+\] \[FE\] \[LOG\] hello$/);
   });
 
-  it("formats a backend error entry", () => {
-    const entry = formatEntry("be", "error", ["fail"]);
-    expect(entry).toMatch(/^\[.+\] \[BE\] \[ERROR\] fail$/);
+  it("formats a backend stderr entry", () => {
+    const entry = formatEntry("be", "stderr", ["fail"]);
+    expect(entry).toMatch(/^\[.+\] \[BE\] \[STDERR\] fail$/);
   });
 
   it("joins multiple args with space", () => {
@@ -88,7 +88,7 @@ describe("formatEntry", () => {
   });
 
   it("includes app name for backend entries", () => {
-    const entry = formatEntry("be", "info", ["msg"], "api");
+    const entry = formatEntry("be", "stdout", ["msg"], "api");
     expect(entry).toMatch(/\[BE:api\]/);
   });
 

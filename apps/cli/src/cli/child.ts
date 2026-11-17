@@ -24,9 +24,12 @@ export function buildChildEnv(
 /**
  * Formats a line of the command's output for the log file, without colour
  * codes. Returns undefined for a line that is empty once they are removed.
+ *
+ * The line is labelled with its stream rather than a level, because many
+ * tools write ordinary output to stderr.
  */
 export function formatOutputLine(stream: OutputStream, line: string): string | undefined {
   const text = stripVTControlCharacters(line);
   if (text.length === 0) return undefined;
-  return formatEntry("be", stream === "stdout" ? "info" : "error", [text]);
+  return formatEntry("be", stream, [text]);
 }

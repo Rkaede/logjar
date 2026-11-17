@@ -158,6 +158,21 @@ Add it to your `package.json` scripts:
 }
 ```
 
+## Log format
+
+Each line starts with a timestamp, where the line came from, and a label:
+
+```
+[2026-11-17T10:30:45.123Z] [BE] [STDOUT] Server listening on http://localhost:3000
+[2026-11-17T10:30:45.456Z] [BE] [STDERR] (node:4821) [DEP0040] DeprecationWarning: The `punycode` module is deprecated.
+[2026-11-17T10:30:46.789Z] [FE] [ERROR] Uncaught TypeError: Cannot read properties of undefined (reading 'id') at http://localhost:5173/src/main.ts:12:5
+[2026-11-17T10:30:47.012Z] [FE:web] [WARN] Slow response from /api/items
+[2026-11-17T10:30:48.345Z] [FE:ext] [LOG] Cart updated (title="Shop", url=http://localhost:5173/cart)
+```
+
+- `BE` lines come from your command and are labelled with the stream they were written to. Many tools write ordinary progress output to stderr, so `STDERR` does not necessarily mean an error.
+- `FE` lines come from the browser and are labelled with the console method. `FE:web` shows the `app` name you set, and `FE:ext` marks lines from the extension, which adds the page title and URL.
+
 ## License
 
 MIT
