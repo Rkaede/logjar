@@ -17,10 +17,14 @@ type ChromeMessageListener = (
 interface ChromeStorageArea {
   get(keys?: string | string[] | Record<string, unknown> | null): Promise<Record<string, unknown>>;
   set(items: Record<string, unknown>): Promise<void>;
+  remove(keys: string | string[]): Promise<void>;
 }
 
 declare const chrome: {
   runtime: {
+    onInstalled: {
+      addListener: (callback: () => void) => void;
+    };
     onMessage: {
       addListener: (callback: ChromeMessageListener) => void;
     };
@@ -28,6 +32,7 @@ declare const chrome: {
   };
   storage: {
     local: ChromeStorageArea;
+    session: ChromeStorageArea;
   };
   tabs: {
     onRemoved: {

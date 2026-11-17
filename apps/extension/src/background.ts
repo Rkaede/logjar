@@ -42,6 +42,12 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   void pruneTabState(tabId);
 });
 
+// Earlier versions kept the enabled tabs in local storage, where they
+// outlived the browser session.
+chrome.runtime.onInstalled.addListener(() => {
+  void chrome.storage.local.remove(STORAGE_KEYS.enabledTabs);
+});
+
 async function handleMessage(
   message: unknown,
   sender: ChromeRuntimeMessageSender,
@@ -90,16 +96,13 @@ async function getPopupState(tabId?: number): Promise<PopupStateResponse> {
 
 async function setPort(port: number | string): Promise<PopupStateResponse> {
   const state = await readState();
-  const nextState = {
-    ...state,
-    port: normalizePort(port, state.port),
-  };
-  await writeState(nextState);
+  const nextPort = normalizePort(port, state.port);
+  await chrome.storage.local.set({ [STORAGE_KEYS.port]: nextPort });
   return {
     enabled: false,
     lastDeliveryError,
-    port: nextState.port,
-    reachable: await probeServer(nextState.port),
+    port: nextPort,
+    reachable: await probeServer(nextPort),
   };
 }
 
@@ -108,10 +111,7 @@ async function setCapture(
   enabled: boolean,
 ): Promise<{ enabled: boolean; ok: true }> {
   const state = await readState();
-  await writeState({
-    ...state,
-    enabledTabs: setTabEnabled(state.enabledTabs, tabId, enabled),
-  });
+  await writeEnabledTabs(setTabEnabled(state.enabledTabs, tabId, enabled));
   await notifyTab(tabId, enabled);
   return { enabled, ok: true };
 }
@@ -132,28 +132,26 @@ async function deliverBatch(batch: LogjarFrontendEntry[]): Promise<{ ok: boolean
   }
 }
 
+// Tab IDs are only meaningful for the current browser session, so the enabled
+// tabs live in session storage. The port is kept across restarts.
 async function readState(): Promise<ExtensionState> {
-  const stored = await chrome.storage.local.get([STORAGE_KEYS.enabledTabs, STORAGE_KEYS.port]);
+  const [session, local] = await Promise.all([
+    chrome.storage.session.get(STORAGE_KEYS.enabledTabs),
+    chrome.storage.local.get(STORAGE_KEYS.port),
+  ]);
   return {
-    enabledTabs: sanitizeEnabledTabs(stored[STORAGE_KEYS.enabledTabs]),
-    port: normalizePort(stored[STORAGE_KEYS.port], DEFAULT_PORT),
+    enabledTabs: sanitizeEnabledTabs(session[STORAGE_KEYS.enabledTabs]),
+    port: normalizePort(local[STORAGE_KEYS.port], DEFAULT_PORT),
   };
 }
 
-async function writeState(state: ExtensionState): Promise<void> {
-  await chrome.storage.local.set({
-    [STORAGE_KEYS.enabledTabs]: state.enabledTabs,
-    [STORAGE_KEYS.port]: state.port,
-  });
+async function writeEnabledTabs(enabledTabs: Record<string, true>): Promise<void> {
+  await chrome.storage.session.set({ [STORAGE_KEYS.enabledTabs]: enabledTabs });
 }
 
 async function pruneTabState(tabId: number): Promise<void> {
   const state = await readState();
-  const nextState = {
-    ...state,
-    enabledTabs: setTabEnabled(state.enabledTabs, tabId, false),
-  };
-  await writeState(nextState);
+  await writeEnabledTabs(setTabEnabled(state.enabledTabs, tabId, false));
 }
 
 async function notifyTab(tabId: number, enabled: boolean): Promise<void> {
