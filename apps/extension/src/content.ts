@@ -62,15 +62,17 @@ async function bootstrap(): Promise<void> {
 }
 
 function applyCaptureState(enabled: boolean): void {
-  captureEnabled = enabled;
-
   if (enabled) {
+    captureEnabled = true;
     ensurePageBridge();
     postControl(true);
     return;
   }
 
+  // Deliver what was captured while enabled. The transport drops batches once
+  // capture is off, so the flag changes only after the flush.
   batcher.flush();
+  captureEnabled = false;
   if (bridgeInjected) {
     postControl(false);
   }
