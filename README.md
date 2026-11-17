@@ -83,7 +83,7 @@ export default defineConfig({
 **Option B: Script tag**
 
 ```html
-<script src="./node_modules/logjar/src/client/snippet.js"></script>
+<script src="./node_modules/logjar/dist/client/snippet.iife.js"></script>
 ```
 
 **Option C: Conditional (only in dev)**

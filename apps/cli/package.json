@@ -23,8 +23,7 @@
     "logjar": "dist/cli/index.mjs"
   },
   "files": [
-    "dist",
-    "src/client/snippet.js"
+    "dist"
   ],
   "type": "module",
   "main": "./dist/client/index.mjs",
@@ -38,14 +37,14 @@
       "types": "./dist/client/index.d.mts",
       "import": "./dist/client/index.mjs"
     },
-    "./snippet": "./src/client/snippet.js",
+    "./snippet": "./dist/client/snippet.iife.js",
     "./package.json": "./package.json"
   },
   "publishConfig": {
     "access": "public"
   },
   "scripts": {
-    "build": "vp pack src/client/index.ts src/cli/index.ts --dts",
+    "build": "vp pack src/client/index.ts src/cli/index.ts --dts && vp pack src/client/snippet.ts -f iife -d dist/client --no-clean",
     "dev": "vp pack src/client/index.ts src/cli/index.ts --dts --watch",
     "test": "vp test",
     "prepublishOnly": "vp run build",
