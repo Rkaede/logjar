@@ -69,6 +69,7 @@
     if (queue.length === 0) return;
     var batch = queue;
     queue = [];
+    clearTimeout(timer);
     timer = null;
     var body = JSON.stringify(batch);
     if (navigator.sendBeacon) {
@@ -124,11 +125,7 @@
   });
 
   window.addEventListener("unhandledrejection", function (event) {
-    var reason =
-      event.reason instanceof Error
-        ? event.reason.name + ": " + event.reason.message
-        : String(event.reason);
-    enqueue("error", ["Unhandled rejection: " + reason]);
+    enqueue("error", ["Unhandled rejection: " + serializeArg(event.reason)]);
   });
 
   window.addEventListener("beforeunload", flush);

@@ -1,4 +1,13 @@
-import { parseLogLevels, shouldCaptureLevel, type LogjarLogLevel } from "../shared/constants.ts";
+import {
+  DEFAULT_PORT,
+  LOG_ENDPOINT,
+  LOG_LEVELS,
+  parseLogLevels,
+  shouldCaptureLevel,
+  type LogjarFrontendEntry,
+  type LogjarLogLevel,
+} from "../shared/constants.ts";
+import { createLogBatcher, serializeLogjarArg } from "./runtime.ts";
 
 /**
  * logjar browser client (ES module)
@@ -34,38 +43,18 @@ interface InitLogjarOptions {
 }
 
 let initialized = false;
-let endpoint = "http://localhost:8797/__logjar";
+let endpoint = buildEndpoint(DEFAULT_PORT);
 let appName: string | undefined;
 let enabledLevels = parseLogLevels();
-let queue: Array<{ level: string; args: string[]; app?: string }> = [];
-let timer: ReturnType<typeof setTimeout> | null = null;
-let flushFn: () => void = () => {};
-const BATCH_INTERVAL = 500;
-const methods = ["log", "info", "warn", "error", "debug"] as const;
+// The endpoint and app name are read when used, so a later initLogjar() call
+// also applies to entries that are still queued.
+const batcher = createLogBatcher({ transport: send });
 
-function serializeArg(arg: unknown): string {
-  if (arg instanceof Error) return `${arg.name}: ${arg.message}`;
-  if (typeof arg === "string") return arg;
-  if (typeof arg === "number" || typeof arg === "boolean" || typeof arg === "bigint")
-    return `${arg}`;
-  if (typeof arg === "undefined") return "undefined";
-  if (typeof arg === "symbol") return arg.toString();
-  if (typeof arg === "function") return `[Function ${arg.name || "anonymous"}]`;
-  if (arg === null) return "null";
-
-  try {
-    return JSON.stringify(arg) ?? "undefined";
-  } catch {
-    return Object.prototype.toString.call(arg);
-  }
+function buildEndpoint(port: number | string): string {
+  return `http://localhost:${port}${LOG_ENDPOINT}`;
 }
 
-function flushQueue(): void {
-  if (queue.length === 0) return;
-  const batch = queue;
-  queue = [];
-  timer = null;
-
+function send(batch: LogjarFrontendEntry[]): void {
   const body = JSON.stringify(batch);
   if (navigator.sendBeacon) {
     const sent = navigator.sendBeacon(endpoint, new Blob([body], { type: "application/json" }));
@@ -81,21 +70,13 @@ function flushQueue(): void {
 
 function enqueue(level: string, args: ArrayLike<unknown>): void {
   if (!shouldCaptureLevel(level, enabledLevels)) return;
-
-  const serialized = Array.from(args).map((arg) => serializeArg(arg));
-
-  const entry: { level: string; args: string[]; app?: string } = { level, args: serialized };
-  if (appName) entry.app = appName;
-  queue.push(entry);
-  if (!timer) {
-    timer = setTimeout(flushQueue, BATCH_INTERVAL);
-  }
+  batcher.enqueue(level, args, appName ? { app: appName } : undefined);
 }
 
 function patchConsole(): void {
   if (initialized) return;
 
-  for (const method of methods) {
+  for (const method of LOG_LEVELS) {
     const original = console[method];
     console[method] = function (...args: unknown[]) {
       enqueue(method, args);
@@ -110,16 +91,11 @@ function patchConsole(): void {
   });
 
   window.addEventListener("unhandledrejection", (event) => {
-    const reason =
-      event.reason instanceof Error
-        ? `${event.reason.name}: ${event.reason.message}`
-        : String(event.reason);
-    enqueue("error", [`Unhandled rejection: ${reason}`]);
+    enqueue("error", [`Unhandled rejection: ${serializeLogjarArg(event.reason)}`]);
   });
 
-  window.addEventListener("beforeunload", flushQueue);
-  window.__logjar = { flush: flushQueue, enqueue };
-  flushFn = flushQueue;
+  window.addEventListener("beforeunload", flush);
+  window.__logjar = { flush, enqueue };
   initialized = true;
 }
 
@@ -130,7 +106,7 @@ export function initLogjar({ port, app, levels }: InitLogjarOptions = {}): void 
     port ||
     window.__LOGJAR_PORT ||
     (document.querySelector('meta[name="logjar-port"]') as HTMLMetaElement | null)?.content ||
-    8797;
+    DEFAULT_PORT;
 
   const resolvedApp =
     app ||
@@ -143,15 +119,14 @@ export function initLogjar({ port, app, levels }: InitLogjarOptions = {}): void 
       (document.querySelector('meta[name="logjar-levels"]') as HTMLMetaElement | null)?.content,
   );
 
-  endpoint = `http://localhost:${resolvedPort}/__logjar`;
+  endpoint = buildEndpoint(resolvedPort);
   appName = resolvedApp;
   enabledLevels = resolvedLevels;
   patchConsole();
-  window.__logjar = { flush: flushQueue, enqueue };
 }
 
 export function flush(): void {
-  flushFn();
+  batcher.flush();
 }
 
 // Auto-initialize on import
