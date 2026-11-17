@@ -7,7 +7,7 @@ import {
   type LogjarFrontendEntry,
   type LogjarLogLevel,
 } from "../shared/constants.ts";
-import { createLogBatcher, serializeLogjarArg } from "./runtime.ts";
+import { createLogBatcher, formatUncaughtError, serializeLogjarArg } from "./runtime.ts";
 
 /**
  * logjar browser client (ES module)
@@ -85,9 +85,7 @@ function patchConsole(): void {
   }
 
   window.addEventListener("error", (event) => {
-    enqueue("error", [
-      `Uncaught ${event.error?.name || "Error"}: ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`,
-    ]);
+    enqueue("error", [formatUncaughtError(event)]);
   });
 
   window.addEventListener("unhandledrejection", (event) => {

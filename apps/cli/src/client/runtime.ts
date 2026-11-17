@@ -78,3 +78,20 @@ export function serializeLogjarArg(value: unknown): string {
   // number, boolean, bigint, symbol, undefined and null
   return String(value);
 }
+
+/**
+ * Describes a window "error" event. The browser's message already names the
+ * error, and Chrome's also starts with "Uncaught", so neither is added twice.
+ */
+export function formatUncaughtError(event: {
+  message?: string;
+  filename?: string;
+  lineno?: number;
+  colno?: number;
+}): string {
+  const raw = event.message || "Error";
+  const message = raw.startsWith("Uncaught") ? raw : `Uncaught ${raw}`;
+  return event.filename
+    ? `${message} at ${event.filename}:${event.lineno}:${event.colno}`
+    : message;
+}

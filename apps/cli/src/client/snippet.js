@@ -110,17 +110,14 @@
   }
 
   window.addEventListener("error", function (event) {
+    // The browser's message already names the error, and Chrome's also starts
+    // with "Uncaught", so neither is added twice.
+    var raw = event.message || "Error";
+    var message = raw.indexOf("Uncaught") === 0 ? raw : "Uncaught " + raw;
     enqueue("error", [
-      "Uncaught " +
-        ((event.error && event.error.name) || "Error") +
-        ": " +
-        event.message +
-        " at " +
-        event.filename +
-        ":" +
-        event.lineno +
-        ":" +
-        event.colno,
+      event.filename
+        ? message + " at " + event.filename + ":" + event.lineno + ":" + event.colno
+        : message,
     ]);
   });
 

@@ -1,4 +1,4 @@
-import { serializeLogjarArg } from "../../cli/src/client/runtime.ts";
+import { formatUncaughtError, serializeLogjarArg } from "../../cli/src/client/runtime.ts";
 import {
   CONTROL_MESSAGE_SOURCE,
   CONTROL_MESSAGE_TYPE,
@@ -65,9 +65,7 @@ if (!window.__LOGJAR_EXTENSION_BRIDGE__) {
 
   function patchWindowErrors(): void {
     window.addEventListener("error", (event) => {
-      emit("error", [
-        `Uncaught ${event.error?.name || "Error"}: ${event.message} at ${event.filename}:${event.lineno}:${event.colno}`,
-      ]);
+      emit("error", [formatUncaughtError(event)]);
     });
 
     window.addEventListener("unhandledrejection", (event) => {

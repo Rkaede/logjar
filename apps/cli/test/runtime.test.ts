@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vite-plus/test";
-import { createLogBatcher, serializeLogjarArg } from "../src/client/runtime.ts";
+import {
+  createLogBatcher,
+  formatUncaughtError,
+  serializeLogjarArg,
+} from "../src/client/runtime.ts";
 import type { LogjarFrontendEntry } from "../src/shared/constants.ts";
 
 describe("serializeLogjarArg", () => {
@@ -105,5 +109,28 @@ describe("createLogBatcher", () => {
     batcher.enqueue("log", ["b"]);
     expect(() => batcher.flush()).not.toThrow();
     await vi.runAllTimersAsync();
+  });
+});
+
+describe("formatUncaughtError", () => {
+  const location = { filename: "http://localhost:5173/main.js", lineno: 7, colno: 28 };
+
+  it("does not repeat the prefix Chrome already adds", () => {
+    expect(
+      formatUncaughtError({ message: "Uncaught TypeError: x is not a function", ...location }),
+    ).toBe("Uncaught TypeError: x is not a function at http://localhost:5173/main.js:7:28");
+  });
+
+  it("adds the prefix for browsers that leave it out", () => {
+    expect(formatUncaughtError({ message: "TypeError: x is not a function", ...location })).toBe(
+      "Uncaught TypeError: x is not a function at http://localhost:5173/main.js:7:28",
+    );
+  });
+
+  it("omits the location when the browser hides it", () => {
+    expect(
+      formatUncaughtError({ message: "Script error.", filename: "", lineno: 0, colno: 0 }),
+    ).toBe("Uncaught Script error.");
+    expect(formatUncaughtError({})).toBe("Uncaught Error");
   });
 });
