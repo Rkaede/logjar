@@ -1,6 +1,6 @@
 {
   "name": "logjar-extension",
-  "version": "1.0.0",
+  "version": "0.0.0-pre.3",
   "private": true,
   "description": "Optional Chrome extension frontend capture for Logjar.",
   "type": "module",

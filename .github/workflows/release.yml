@@ -61,7 +61,7 @@ jobs:
           printf 'dry_run=%s\n' "$dry_run" >> "$GITHUB_OUTPUT"
           printf 'dist_tag=%s\n' "$dist_tag" >> "$GITHUB_OUTPUT"
 
-      - name: Validate release tag against CLI version
+      - name: Validate release tag against package versions
         run: node ./scripts/release/prepare-extension-release.mjs "${{ steps.release_meta.outputs.release_tag }}"
 
       - name: Validate workspace
@@ -72,9 +72,6 @@ jobs:
 
       - name: Build CLI package
         run: vp run logjar#build
-
-      - name: Sync extension version to release tag
-        run: node ./scripts/release/prepare-extension-release.mjs "${{ steps.release_meta.outputs.release_tag }}" --write
 
       - name: Build browser extension
         run: vp run logjar-extension#build
