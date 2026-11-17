@@ -4,11 +4,11 @@ packages:
 catalogMode: prefer
 
 catalog:
-  "@types/node": ^24
-  typescript: ^5
-  vite: npm:@voidzero-dev/vite-plus-core@latest
-  vitest: npm:@voidzero-dev/vite-plus-test@latest
-  vite-plus: latest
+  "@types/node": ^25.5.0
+  typescript: ^6.0.2
+  vite: npm:@voidzero-dev/vite-plus-core@0.1.16
+  vitest: npm:@voidzero-dev/vite-plus-test@0.1.16
+  vite-plus: 0.1.16
 overrides:
   vite: "catalog:"
   vitest: "catalog:"

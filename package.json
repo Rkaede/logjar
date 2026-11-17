@@ -10,6 +10,7 @@
     "prepare": "vp config"
   },
   "devDependencies": {
+    "bumpp": "^11.0.1",
     "vite-plus": "catalog:"
   },
   "engines": {
