@@ -3,20 +3,24 @@ import { DEFAULT_PORT } from "../shared/constants.ts";
 const MIN_PORT = 0;
 const MAX_PORT = 65_535;
 
-type Environment = Record<string, string | undefined>;
+export type Environment = Record<string, string | undefined>;
 
+/** A mistake in how logjar was invoked, reported together with the usage text. */
+export class UsageError extends Error {}
+
+/**
+ * Resolves the log server port: the --port flag, then LOGJAR_PORT, then the
+ * default. `portFlag` is the value logjar's own parser read, so a --port that
+ * belongs to the wrapped command is never taken.
+ */
 export function resolveConfiguredPort(
-  argv: readonly string[],
+  portFlag: string | undefined,
   environment: Environment = process.env,
 ): number {
-  const portFlagIndex = argv.indexOf("--port");
-  const hasPortFlag = portFlagIndex !== -1;
-  const source = hasPortFlag ? "--port" : "LOGJAR_PORT";
-  const value = hasPortFlag
-    ? argv[portFlagIndex + 1]
-    : (environment.LOGJAR_PORT ?? String(DEFAULT_PORT));
+  const source = portFlag === undefined ? "LOGJAR_PORT" : "--port";
+  const value = portFlag ?? environment.LOGJAR_PORT ?? String(DEFAULT_PORT);
 
-  if (value == null || value.trim() === "") {
+  if (value.trim() === "") {
     throw invalidPortError(source);
   }
 
@@ -36,6 +40,6 @@ export function createChildEnvironment(environment: Environment, port: number): 
   };
 }
 
-function invalidPortError(source: string): Error {
-  return new Error(`[logjar] Invalid value for ${source}: must be an integer between 0 and 65535`);
+function invalidPortError(source: string): UsageError {
+  return new UsageError(`Invalid value for ${source}: must be an integer between 0 and 65535`);
 }

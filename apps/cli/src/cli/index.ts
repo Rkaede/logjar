@@ -2,63 +2,32 @@
 
 import { spawn } from "node:child_process";
 import process from "node:process";
-import {
-  DEFAULT_PORT,
-  DEFAULT_LOG_FILE,
-  DEFAULT_MAX_AGE_MS,
-  DEFAULT_MAX_SIZE_BYTES,
-  formatEntry,
-} from "../shared/constants.ts";
+import { formatEntry } from "../shared/constants.ts";
 import { RollingBuffer } from "../shared/rolling-buffer.ts";
 import { LogWriter } from "../server/writer.ts";
 import { getListeningPort, startServer } from "../server/http.ts";
-import { createChildEnvironment, resolveConfiguredPort } from "./config.ts";
+import { createChildEnvironment } from "./config.ts";
+import { parseArgs, UsageError, USAGE, type CliOptions } from "./args.ts";
 
 // ── Parse arguments ────────────────────────────────────────────────
-const argv = process.argv.slice(2);
-
-function flag(name: string, fallback: string | number): string {
-  const idx = argv.indexOf(name);
-  if (idx === -1) return String(fallback);
-  const val = argv.splice(idx, 2)[1]; // remove flag + value
-  return val ?? String(fallback);
-}
-
-let configuredPort: number;
+let options: CliOptions;
 try {
-  configuredPort = resolveConfiguredPort(argv);
-} catch (error) {
-  console.error((error as Error).message);
-  process.exit(1);
-}
-flag("--port", configuredPort);
-const logFile = flag("--out", DEFAULT_LOG_FILE);
-const maxAge = Number(flag("--max-age", DEFAULT_MAX_AGE_MS / 1000)) * 1000; // user gives seconds
-const maxSize = Number(flag("--max-size", DEFAULT_MAX_SIZE_BYTES / 1024)) * 1024; // user gives KB
-
-for (const [name, value] of [
-  ["--max-age", maxAge],
-  ["--max-size", maxSize],
-] as const) {
-  if (Number.isNaN(value) || value <= 0) {
-    console.error(`[logjar] Invalid value for ${name}: must be a positive number`);
-    process.exit(1);
+  const parsed = parseArgs(process.argv.slice(2));
+  if (parsed === "help") {
+    console.log(USAGE);
+    process.exit(0);
   }
-}
-
-// Everything after `--` is the child command
-const dashIdx = argv.indexOf("--");
-const childArgs = dashIdx !== -1 ? argv.slice(dashIdx + 1) : argv;
-
-if (childArgs.length === 0) {
-  console.error(
-    `Usage: logjar [options] -- <command>\n\nOptions:\n  --port <n>      HTTP port for frontend logs (env: LOGJAR_PORT; default: ${DEFAULT_PORT}; 0: auto)\n  --out <path>    Log file path (default: ${DEFAULT_LOG_FILE})\n  --max-age <s>   Rolling window in seconds (default: 900)\n  --max-size <kb> Max log file size in KB (default: 200)\n\nExample:\n  logjar -- turbo run dev --parallel`,
-  );
+  options = parsed;
+} catch (error) {
+  if (!(error instanceof UsageError)) throw error;
+  console.error(`[logjar] ${error.message}\n\n${USAGE}`);
   process.exit(1);
 }
+
+const { port, logFile, maxAgeMs, maxSizeBytes, command } = options;
 
 // ── Set up rolling buffer + writer ──────────────────────────────────
-const buffer = new RollingBuffer({ maxAgeMs: maxAge, maxSizeBytes: maxSize });
+const buffer = new RollingBuffer({ maxAgeMs, maxSizeBytes });
 const writer = new LogWriter(buffer, logFile);
 
 function ingest(line: string): void {
@@ -67,11 +36,11 @@ function ingest(line: string): void {
 }
 
 // ── Start HTTP server for frontend logs ─────────────────────────────
-const server = await startServer({ port: configuredPort, onEntry: ingest });
+const server = await startServer({ port, onEntry: ingest });
 const actualPort = getListeningPort(server);
 
 // ── Spawn the child process ─────────────────────────────────────────
-const [cmd, ...args] = childArgs;
+const [cmd, ...args] = command;
 const child = spawn(cmd, args, {
   stdio: ["inherit", "pipe", "pipe"],
   shell: true,
@@ -106,7 +75,7 @@ handleOutput(child.stderr!, "stderr");
 
 // ── Banner ──────────────────────────────────────────────────────────
 console.error(
-  `[logjar] Capturing logs → ${logFile} (port ${actualPort}, window ${maxAge / 1000}s, cap ${maxSize / 1024}KB)`,
+  `[logjar] Capturing logs → ${logFile} (port ${actualPort}, window ${maxAgeMs / 1000}s, cap ${maxSizeBytes / 1024}KB)`,
 );
 console.error(`[logjar] Frontend snippet: import 'logjar/client' or add <script> tag`);
 

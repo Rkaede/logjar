@@ -6,33 +6,31 @@ import { DEFAULT_PORT } from "../src/shared/constants.ts";
 
 describe("resolveConfiguredPort", () => {
   it("prefers --port over LOGJAR_PORT", () => {
-    expect(resolveConfiguredPort(["--port", "9100", "--", "dev"], { LOGJAR_PORT: "9200" })).toBe(
-      9100,
-    );
+    expect(resolveConfiguredPort("9100", { LOGJAR_PORT: "9200" })).toBe(9100);
   });
 
   it("uses LOGJAR_PORT when --port is absent", () => {
-    expect(resolveConfiguredPort(["--", "dev"], { LOGJAR_PORT: "9200" })).toBe(9200);
+    expect(resolveConfiguredPort(undefined, { LOGJAR_PORT: "9200" })).toBe(9200);
   });
 
   it("preserves the existing default when neither source is configured", () => {
-    expect(resolveConfiguredPort(["--", "dev"], {})).toBe(DEFAULT_PORT);
+    expect(resolveConfiguredPort(undefined, {})).toBe(DEFAULT_PORT);
   });
 
   it("accepts port 0 for OS-assigned ports", () => {
-    expect(resolveConfiguredPort(["--port", "0"], { LOGJAR_PORT: "9200" })).toBe(0);
-    expect(resolveConfiguredPort([], { LOGJAR_PORT: "0" })).toBe(0);
+    expect(resolveConfiguredPort("0", { LOGJAR_PORT: "9200" })).toBe(0);
+    expect(resolveConfiguredPort(undefined, { LOGJAR_PORT: "0" })).toBe(0);
   });
 
-  it.each(["not-a-port", "-1", "1.5", "65536"])("rejects invalid CLI port %s", (value) => {
-    expect(() => resolveConfiguredPort(["--port", value], {})).toThrow(
-      "[logjar] Invalid value for --port: must be an integer between 0 and 65535",
+  it.each(["", "not-a-port", "-1", "1.5", "65536"])("rejects invalid CLI port %s", (value) => {
+    expect(() => resolveConfiguredPort(value, {})).toThrow(
+      "Invalid value for --port: must be an integer between 0 and 65535",
     );
   });
 
   it.each(["", "not-a-port", "-1", "1.5", "65536"])("rejects invalid LOGJAR_PORT %s", (value) => {
-    expect(() => resolveConfiguredPort([], { LOGJAR_PORT: value })).toThrow(
-      "[logjar] Invalid value for LOGJAR_PORT: must be an integer between 0 and 65535",
+    expect(() => resolveConfiguredPort(undefined, { LOGJAR_PORT: value })).toThrow(
+      "Invalid value for LOGJAR_PORT: must be an integer between 0 and 65535",
     );
   });
 });
