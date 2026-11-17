@@ -2,6 +2,7 @@
 
 import { spawn } from "node:child_process";
 import process from "node:process";
+import { StringDecoder } from "node:string_decoder";
 import { formatEntry } from "../shared/constants.ts";
 import { RollingBuffer } from "../shared/rolling-buffer.ts";
 import { LogWriter } from "../server/writer.ts";
@@ -95,7 +96,9 @@ function runChild(logWriter: LogWriter): void {
     fail(`Could not run the command: ${error.message}`);
   });
 
-  child.on("exit", (code, signal) => {
+  // "close" fires after the output streams have ended, so the last lines are
+  // captured before the final flush. "exit" can fire while data is unread.
+  child.on("close", (code, signal) => {
     logWriter.flushSync();
     server.close();
     if (signal) {
@@ -109,23 +112,29 @@ function runChild(logWriter: LogWriter): void {
 }
 
 function handleOutput(stream: NodeJS.ReadableStream, streamName: "stdout" | "stderr"): void {
+  const level = streamName === "stdout" ? "info" : "error";
+  // Decodes across chunk boundaries, so a split multi-byte character survives.
+  const decoder = new StringDecoder("utf8");
   let leftover = "";
-  stream.on("data", (chunk: Buffer) => {
-    // Pass-through to parent's terminal so the developer still sees output
-    process[streamName].write(chunk);
 
-    // Split into lines, capturing partial lines
-    const text = leftover + chunk.toString();
-    const lines = text.split(/\r?\n/);
+  function ingestLines(text: string): void {
+    const lines = (leftover + text).split(/\r?\n/);
     leftover = lines.pop()!; // last element may be incomplete
     for (const line of lines) {
       if (line.length === 0) continue;
-      ingest(formatEntry("be", streamName === "stdout" ? "info" : "error", [line]));
+      ingest(formatEntry("be", level, [line]));
     }
+  }
+
+  stream.on("data", (chunk: Buffer) => {
+    // Pass-through to parent's terminal so the developer still sees output
+    process[streamName].write(chunk);
+    ingestLines(decoder.write(chunk));
   });
   stream.on("end", () => {
+    ingestLines(decoder.end());
     if (leftover.length > 0) {
-      ingest(formatEntry("be", streamName === "stdout" ? "info" : "error", [leftover]));
+      ingest(formatEntry("be", level, [leftover]));
       leftover = "";
     }
   });
