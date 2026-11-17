@@ -5,7 +5,7 @@
   "version_name": "0.0.0-pre.3",
   "description": "Optional Logjar Chrome extension for frontend log capture.",
   "minimum_chrome_version": "111",
-  "permissions": ["storage", "tabs"],
+  "permissions": ["activeTab", "storage"],
   "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
   "background": {
     "service_worker": "background.iife.js"
