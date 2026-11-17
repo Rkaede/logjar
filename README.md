@@ -172,6 +172,7 @@ Each line starts with a timestamp, where the line came from, and a label:
 
 - `BE` lines come from your command and are labelled with the stream they were written to. Many tools write ordinary progress output to stderr, so `STDERR` does not necessarily mean an error.
 - `FE` lines come from the browser and are labelled with the console method. `FE:web` shows the `app` name you set, and `FE:ext` marks lines from the extension, which adds the page title and URL.
+- Errors logged in the browser, uncaught errors and unhandled rejections include up to five stack frames on the lines that follow.
 
 ## License
 

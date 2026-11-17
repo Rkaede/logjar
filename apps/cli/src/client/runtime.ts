@@ -62,9 +62,11 @@ export function createLogBatcher({
   return { enqueue, flush };
 }
 
+const MAX_STACK_FRAMES = 5;
+
 export function serializeLogjarArg(value: unknown): string {
   if (typeof value === "string") return value;
-  if (value instanceof Error) return `${value.name}: ${value.message}`;
+  if (value instanceof Error) return errorSummary(value) + formatStackFrames(value);
   if (typeof value === "function") return `[Function ${value.name || "anonymous"}]`;
 
   if (typeof value === "object" && value !== null) {
@@ -88,10 +90,37 @@ export function formatUncaughtError(event: {
   filename?: string;
   lineno?: number;
   colno?: number;
+  error?: unknown;
 }): string {
   const raw = event.message || "Error";
   const message = raw.startsWith("Uncaught") ? raw : `Uncaught ${raw}`;
-  return event.filename
-    ? `${message} at ${event.filename}:${event.lineno}:${event.colno}`
-    : message;
+  const location = event.filename ? ` at ${event.filename}:${event.lineno}:${event.colno}` : "";
+  const frames = event.error instanceof Error ? formatStackFrames(event.error) : "";
+  return message + location + frames;
+}
+
+/** The "Name: message" line, written the way the error's stack starts it. */
+function errorSummary(error: Error): string {
+  return error.message ? `${error.name}: ${error.message}` : error.name;
+}
+
+/**
+ * Returns the first few stack frames, each on its own indented line. V8
+ * starts the stack with the summary line, which is dropped so the message is
+ * not printed twice. Firefox and Safari stacks hold only frames.
+ */
+function formatStackFrames(error: Error): string {
+  const { stack } = error;
+  if (typeof stack !== "string") return "";
+
+  const summary = errorSummary(error);
+  const startsWithSummary = stack === summary || stack.startsWith(`${summary}\n`);
+  const frames = startsWithSummary ? stack.slice(summary.length) : stack;
+  return frames
+    .split("\n")
+    .map((frame) => frame.trim())
+    .filter(Boolean)
+    .slice(0, MAX_STACK_FRAMES)
+    .map((frame) => `\n    ${frame}`)
+    .join("");
 }
