@@ -33,6 +33,16 @@ describe("RollingBuffer", () => {
     expect(result).toContain("cccccccccc");
   });
 
+  it("stays within maxSizeBytes over many pushes", () => {
+    const buf = new RollingBuffer({ maxAgeMs: 60_000, maxSizeBytes: 100 });
+    for (let i = 0; i < 1000; i++) {
+      buf.push(`line ${i} ✓`);
+      expect(Buffer.byteLength(buf.toString(), "utf8")).toBeLessThanOrEqual(100);
+    }
+    expect(buf.toString()).toMatch(/line 999 ✓\n$/);
+    expect(buf.toString().split("\n").length).toBeGreaterThan(5);
+  });
+
   it("ends toString() with newline when entries exist", () => {
     const buf = new RollingBuffer();
     buf.push("hello");

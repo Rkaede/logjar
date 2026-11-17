@@ -3,6 +3,7 @@ import { DEFAULT_MAX_AGE_MS, DEFAULT_MAX_SIZE_BYTES } from "./constants.ts";
 interface BufferEntry {
   ts: number;
   line: string;
+  bytes: number;
 }
 
 interface RollingBufferOptions {
@@ -18,6 +19,7 @@ export class RollingBuffer {
   maxAgeMs: number;
   maxSizeBytes: number;
   entries: BufferEntry[];
+  private _totalBytes = 0;
 
   constructor({
     maxAgeMs = DEFAULT_MAX_AGE_MS,
@@ -29,32 +31,29 @@ export class RollingBuffer {
   }
 
   push(line: string): void {
-    this.entries.push({ ts: Date.now(), line });
+    const bytes = Buffer.byteLength(line, "utf8") + 1; // +1 for newline
+    this.entries.push({ ts: Date.now(), line, bytes });
+    this._totalBytes += bytes;
     this._prune();
   }
 
   _prune(): void {
     const cutoff = Date.now() - this.maxAgeMs;
+    let dropCount = 0;
 
-    // Drop entries older than maxAge
-    while (this.entries.length > 0 && this.entries[0].ts < cutoff) {
-      this.entries.shift();
+    // Drop entries older than maxAge, then the oldest ones until the total
+    // size fits within the cap. The running total keeps a push cheap.
+    while (
+      dropCount < this.entries.length &&
+      (this.entries[dropCount].ts < cutoff || this._totalBytes > this.maxSizeBytes)
+    ) {
+      this._totalBytes -= this.entries[dropCount].bytes;
+      dropCount++;
     }
 
-    // Drop oldest entries until total size fits within cap
-    let totalBytes = this._totalBytes();
-    while (totalBytes > this.maxSizeBytes && this.entries.length > 0) {
-      const removed = this.entries.shift()!;
-      totalBytes -= Buffer.byteLength(removed.line, "utf8") + 1; // +1 for newline
+    if (dropCount > 0) {
+      this.entries.splice(0, dropCount);
     }
-  }
-
-  _totalBytes(): number {
-    let bytes = 0;
-    for (const e of this.entries) {
-      bytes += Buffer.byteLength(e.line, "utf8") + 1;
-    }
-    return bytes;
   }
 
   toString(): string {
