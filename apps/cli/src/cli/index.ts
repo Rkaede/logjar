@@ -3,12 +3,11 @@
 import { spawn } from "node:child_process";
 import process from "node:process";
 import { StringDecoder } from "node:string_decoder";
-import { formatEntry } from "../shared/constants.ts";
 import { RollingBuffer } from "../shared/rolling-buffer.ts";
 import { LogWriter } from "../server/writer.ts";
 import { getListeningPort, startServer } from "../server/http.ts";
-import { createChildEnvironment } from "./config.ts";
 import { parseArgs, toShellCommand, UsageError, USAGE, type CliOptions } from "./args.ts";
+import { buildChildEnv, formatOutputLine, type OutputStream } from "./child.ts";
 
 // ── Parse arguments ────────────────────────────────────────────────
 let options: CliOptions;
@@ -71,7 +70,7 @@ function runChild(logWriter: LogWriter): void {
   const child = spawn(toShellCommand(command), {
     stdio: ["inherit", "pipe", "pipe"],
     shell: true,
-    env: createChildEnvironment(process.env, actualPort),
+    env: buildChildEnv(process.env, actualPort, Boolean(process.stdout.isTTY)),
   });
 
   handleOutput(child.stdout, "stdout");
@@ -111,8 +110,7 @@ function runChild(logWriter: LogWriter): void {
   });
 }
 
-function handleOutput(stream: NodeJS.ReadableStream, streamName: "stdout" | "stderr"): void {
-  const level = streamName === "stdout" ? "info" : "error";
+function handleOutput(stream: NodeJS.ReadableStream, streamName: OutputStream): void {
   // Decodes across chunk boundaries, so a split multi-byte character survives.
   const decoder = new StringDecoder("utf8");
   let leftover = "";
@@ -120,10 +118,12 @@ function handleOutput(stream: NodeJS.ReadableStream, streamName: "stdout" | "std
   function ingestLines(text: string): void {
     const lines = (leftover + text).split(/\r?\n/);
     leftover = lines.pop()!; // last element may be incomplete
-    for (const line of lines) {
-      if (line.length === 0) continue;
-      ingest(formatEntry("be", level, [line]));
-    }
+    for (const line of lines) ingestLine(line);
+  }
+
+  function ingestLine(line: string): void {
+    const entry = formatOutputLine(streamName, line);
+    if (entry) ingest(entry);
   }
 
   stream.on("data", (chunk: Buffer) => {
@@ -133,9 +133,6 @@ function handleOutput(stream: NodeJS.ReadableStream, streamName: "stdout" | "std
   });
   stream.on("end", () => {
     ingestLines(decoder.end());
-    if (leftover.length > 0) {
-      ingest(formatEntry("be", level, [leftover]));
-      leftover = "";
-    }
+    ingestLine(leftover);
   });
 }
