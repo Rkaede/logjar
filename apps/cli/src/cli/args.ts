@@ -89,3 +89,26 @@ function positiveNumber(values: Map<string, string>, name: string, fallback: num
   }
   return value;
 }
+
+/**
+ * Builds the command line handed to the shell.
+ *
+ * A single argument is taken as a complete shell command, so
+ * `logjar -- "npm run a && npm run b"` works. Several arguments were already
+ * split by the caller's shell, so each one is quoted to reach the command
+ * unchanged. On Windows they are joined as they are, because cmd.exe has no
+ * quoting that is safe for every program.
+ */
+export function toShellCommand(
+  command: readonly string[],
+  platform: string = process.platform,
+): string {
+  if (command.length === 1) return command[0];
+  if (platform === "win32") return command.join(" ");
+  return command.map(quotePosixArg).join(" ");
+}
+
+function quotePosixArg(arg: string): string {
+  if (/^[\w@%+=:,./-]+$/.test(arg)) return arg;
+  return `'${arg.replaceAll("'", "'\\''")}'`;
+}

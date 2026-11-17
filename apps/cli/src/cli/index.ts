@@ -7,7 +7,7 @@ import { RollingBuffer } from "../shared/rolling-buffer.ts";
 import { LogWriter } from "../server/writer.ts";
 import { getListeningPort, startServer } from "../server/http.ts";
 import { createChildEnvironment } from "./config.ts";
-import { parseArgs, UsageError, USAGE, type CliOptions } from "./args.ts";
+import { parseArgs, toShellCommand, UsageError, USAGE, type CliOptions } from "./args.ts";
 
 // ── Parse arguments ────────────────────────────────────────────────
 let options: CliOptions;
@@ -40,8 +40,7 @@ const server = await startServer({ port, onEntry: ingest });
 const actualPort = getListeningPort(server);
 
 // ── Spawn the child process ─────────────────────────────────────────
-const [cmd, ...args] = command;
-const child = spawn(cmd, args, {
+const child = spawn(toShellCommand(command), {
   stdio: ["inherit", "pipe", "pipe"],
   shell: true,
   env: createChildEnvironment(process.env, actualPort),

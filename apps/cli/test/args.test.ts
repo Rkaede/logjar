@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vite-plus/test";
-import { parseArgs, UsageError } from "../src/cli/args.ts";
+import { parseArgs, toShellCommand, UsageError } from "../src/cli/args.ts";
 
 describe("parseArgs", () => {
   it("uses the defaults when only a command is given", () => {
@@ -68,5 +68,28 @@ describe("parseArgs", () => {
     expect(() => parseArgs(["--", "npm"], { LOGJAR_PORT: "nope" })).toThrow(UsageError);
     expect(() => parseArgs(["--max-age", "0", "--", "npm"])).toThrow("Invalid value for --max-age");
     expect(() => parseArgs(["--max-size=-1", "--", "npm"])).toThrow("Invalid value for --max-size");
+  });
+});
+
+describe("toShellCommand", () => {
+  it("passes a single argument through as a shell command", () => {
+    expect(toShellCommand(["npm run a && npm run b"], "linux")).toBe("npm run a && npm run b");
+  });
+
+  it("leaves plain arguments unquoted", () => {
+    expect(toShellCommand(["FOO=bar", "turbo", "run", "dev", "--parallel"], "linux")).toBe(
+      "FOO=bar turbo run dev --parallel",
+    );
+  });
+
+  it("quotes arguments the shell would otherwise split or expand", () => {
+    expect(toShellCommand(["node", "-e", "console.log('a b', 1 + 1)"], "darwin")).toBe(
+      `node -e 'console.log('\\''a b'\\'', 1 + 1)'`,
+    );
+    expect(toShellCommand(["echo", "", "$HOME", "*"], "linux")).toBe("echo '' '$HOME' '*'");
+  });
+
+  it("joins arguments unchanged on Windows", () => {
+    expect(toShellCommand(["npm", "run", "dev:all"], "win32")).toBe("npm run dev:all");
   });
 });
