@@ -5,12 +5,11 @@
  *
  *   <script src="./node_modules/logjar/src/client/snippet.js"></script>
  *
- * Or copy-paste the minified version from the README.
- * Same behavior as the ES module client.
+ * Same behavior as the ES module client (index.ts). It is a hand-written IIFE
+ * with no imports so it works as a plain <script>, which means a change to the
+ * module client has to be repeated here.
  */
 
-// This file is identical to index.js — it's an IIFE so it works as a plain <script>.
-// The contents are inlined here so there are no import dependencies.
 (function () {
   if (typeof window === "undefined") return;
 
