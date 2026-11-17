@@ -115,7 +115,7 @@ Add the following to your `AGENTS.md` / `CLAUDE.md` / `.cursorrules`:
 Read .logjar/logs.txt to check for frontend and backend errors.
 ```
 
-## 4. Update your .gitignore
+### 4. Update your .gitignore
 
 Update your `.gitignore` to exclude the logjar directory:
 
@@ -133,6 +133,7 @@ Options:
   --out <path>     Log file path                (default: .logjar/logs.txt)
   --max-age <s>    Rolling window in seconds    (default: 900)
   --max-size <kb>  Max log file size in KB      (default: 200)
+  -h, --help       Show this help
 ```
 
 ### Examples
@@ -142,9 +143,14 @@ Options:
 logjar --port 9000 --out logs/dev.txt -- npm run dev
 
 # Longer window, bigger cap
-logjar --max-age 600 --max-size 100 -- next dev
+logjar --max-age 1800 --max-size 500 -- next dev
+```
 
-# Add to package.json scripts
+Logjar's own options go before the `--`. Everything after it is your command, so flags such as `next dev --port 3000` reach your command unchanged.
+
+Add it to your `package.json` scripts:
+
+```json
 {
   "scripts": {
     "dev": "logjar -- turbo run dev --parallel"
