@@ -11,16 +11,14 @@ export class LogWriter {
   buffer: RollingBuffer;
   filePath: string;
   private _timer: ReturnType<typeof setTimeout> | null = null;
+  private _warned = false;
 
   constructor(buffer: RollingBuffer, filePath: string) {
     this.buffer = buffer;
     this.filePath = path.resolve(filePath);
 
     // Ensure directory exists
-    const dir = path.dirname(this.filePath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
+    fs.mkdirSync(path.dirname(this.filePath), { recursive: true });
 
     // Write empty file so agents can find it immediately
     fs.writeFileSync(this.filePath, "", "utf8");
@@ -40,6 +38,8 @@ export class LogWriter {
       fs.writeFileSync(this.filePath, this.buffer.toString(), "utf8");
     } catch (err) {
       // Don't crash — just warn once to stderr
+      if (this._warned) return;
+      this._warned = true;
       process.stderr.write(`[logjar] flush error: ${(err as Error).message}\n`);
     }
   }
