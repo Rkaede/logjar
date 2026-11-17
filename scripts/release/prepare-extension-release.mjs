@@ -38,7 +38,16 @@ const extensionPackage = JSON.parse(fs.readFileSync(extensionPackagePath, "utf8"
 const extensionManifest = JSON.parse(fs.readFileSync(extensionManifestPath, "utf8"));
 
 extensionPackage.version = releaseVersion;
-extensionManifest.version = releaseVersion;
+
+// Chrome accepts only dot-separated integers in "version", so a prerelease
+// such as 1.2.3-pre.1 keeps its full form in "version_name".
+const manifestVersion = releaseVersion.replace(/[-+].*$/, "");
+extensionManifest.version = manifestVersion;
+if (manifestVersion === releaseVersion) {
+  delete extensionManifest.version_name;
+} else {
+  extensionManifest.version_name = releaseVersion;
+}
 
 fs.writeFileSync(extensionPackagePath, `${JSON.stringify(extensionPackage, null, 2)}\n`);
 fs.writeFileSync(extensionManifestPath, `${JSON.stringify(extensionManifest, null, 2)}\n`);
