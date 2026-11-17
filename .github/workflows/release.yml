@@ -73,19 +73,6 @@ jobs:
       - name: Build CLI package
         run: vp run logjar#build
 
-      - name: Simulate CLI publish to npm
-        if: steps.release_meta.outputs.dry_run == 'true'
-        working-directory: apps/cli
-        run: |
-          mkdir -p ../../artifacts
-          vp dlx npm@11.19.0 publish --dry-run --access public --provenance --tag "${{ steps.release_meta.outputs.dist_tag }}" \
-            | tee "../../artifacts/npm-publish-dry-run-${{ steps.release_meta.outputs.release_tag }}.txt"
-
-      - name: Publish CLI package to npm
-        if: steps.release_meta.outputs.dry_run != 'true'
-        working-directory: apps/cli
-        run: vp dlx npm@11.19.0 publish --access public --provenance --tag "${{ steps.release_meta.outputs.dist_tag }}"
-
       - name: Sync extension version to release tag
         run: node ./scripts/release/prepare-extension-release.mjs "${{ steps.release_meta.outputs.release_tag }}" --write
 
@@ -98,6 +85,19 @@ jobs:
           archive="logjar-extension-${{ steps.release_meta.outputs.release_tag }}.zip"
           cd apps/extension/dist
           zip -r "../../../artifacts/${archive}" .
+
+      - name: Simulate CLI publish to npm
+        if: steps.release_meta.outputs.dry_run == 'true'
+        working-directory: apps/cli
+        run: |
+          mkdir -p ../../artifacts
+          vp dlx npm@11.19.0 publish --dry-run --access public --provenance --tag "${{ steps.release_meta.outputs.dist_tag }}" \
+            | tee "../../artifacts/npm-publish-dry-run-${{ steps.release_meta.outputs.release_tag }}.txt"
+
+      - name: Publish CLI package to npm
+        if: steps.release_meta.outputs.dry_run != 'true'
+        working-directory: apps/cli
+        run: vp dlx npm@11.19.0 publish --access public --provenance --tag "${{ steps.release_meta.outputs.dist_tag }}"
 
       - name: Upload dry-run artifacts
         if: steps.release_meta.outputs.dry_run == 'true'
