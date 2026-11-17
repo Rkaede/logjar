@@ -38,6 +38,7 @@ describe("isTrustedOriginHeader", () => {
   it("allows loopback browser origins", () => {
     expect(isTrustedOriginHeader("http://localhost:5173")).toBe(true);
     expect(isTrustedOriginHeader("https://127.0.0.1:3000")).toBe(true);
+    expect(isTrustedOriginHeader("http://[::1]:5173")).toBe(true);
     expect(isTrustedOriginHeader("http://app.localhost:4173")).toBe(true);
     expect(isTrustedOriginHeader("chrome-extension://abcdefghijklmnop")).toBe(true);
   });

@@ -7,7 +7,8 @@ interface StartServerOptions {
 }
 
 const LOOPBACK_HOST = "localhost";
-const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "::1"]);
+// URL.hostname keeps the brackets around an IPv6 address.
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 const MAX_BODY_BYTES = 1 * 1024 * 1024; // 1 MB
 
 /**
