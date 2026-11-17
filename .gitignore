@@ -16,6 +16,9 @@ temp
 *.local
 .logjar/
 
+# Copied from the root README when the CLI package is packed
+apps/cli/README.md
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
