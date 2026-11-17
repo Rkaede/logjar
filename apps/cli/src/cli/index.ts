@@ -26,25 +26,84 @@ try {
 
 const { port, logFile, maxAgeMs, maxSizeBytes, command } = options;
 
+function fail(message: string): never {
+  console.error(`[logjar] ${message}`);
+  process.exit(1);
+}
+
 // ── Set up rolling buffer + writer ──────────────────────────────────
 const buffer = new RollingBuffer({ maxAgeMs, maxSizeBytes });
-const writer = new LogWriter(buffer, logFile);
+let writer: LogWriter | undefined;
 
 function ingest(line: string): void {
   buffer.push(line);
-  writer.schedule();
+  writer?.schedule();
 }
 
 // ── Start HTTP server for frontend logs ─────────────────────────────
-const server = await startServer({ port, onEntry: ingest });
+// The child starts only once the port is ours. Otherwise a second logjar on
+// the same port would crash after it had already started the command.
+const server = await startServer({ port, onEntry: ingest }).catch((error: NodeJS.ErrnoException) =>
+  fail(
+    error.code === "EADDRINUSE"
+      ? `Port ${port} is already in use. Is another logjar running? Pick another port with --port or LOGJAR_PORT.`
+      : `Could not start the log server on port ${port}: ${error.message}`,
+  ),
+);
+server.on("error", (error) => {
+  console.error(`[logjar] Log server error: ${error.message}`);
+});
+
+// With port 0 the operating system picks the port, so read back the real one.
 const actualPort = getListeningPort(server);
 
+try {
+  writer = new LogWriter(buffer, logFile);
+} catch (error) {
+  fail(`Could not write ${logFile}: ${(error as Error).message}`);
+}
+
+runChild(writer);
+
 // ── Spawn the child process ─────────────────────────────────────────
-const child = spawn(toShellCommand(command), {
-  stdio: ["inherit", "pipe", "pipe"],
-  shell: true,
-  env: createChildEnvironment(process.env, actualPort),
-});
+function runChild(logWriter: LogWriter): void {
+  const child = spawn(toShellCommand(command), {
+    stdio: ["inherit", "pipe", "pipe"],
+    shell: true,
+    env: createChildEnvironment(process.env, actualPort),
+  });
+
+  handleOutput(child.stdout, "stdout");
+  handleOutput(child.stderr, "stderr");
+
+  // ── Banner ────────────────────────────────────────────────────────
+  console.error(
+    `[logjar] Capturing logs → ${logFile} (port ${actualPort}, window ${maxAgeMs / 1000}s, cap ${maxSizeBytes / 1024}KB)`,
+  );
+  console.error(`[logjar] Frontend snippet: import 'logjar/client' or add <script> tag`);
+
+  // ── Cleanup ───────────────────────────────────────────────────────
+  for (const sig of ["SIGINT", "SIGTERM"] as const) {
+    process.on(sig, () => {
+      child.kill(sig);
+    });
+  }
+
+  child.on("error", (error) => {
+    logWriter.flushSync();
+    fail(`Could not run the command: ${error.message}`);
+  });
+
+  child.on("exit", (code, signal) => {
+    logWriter.flushSync();
+    server.close();
+    if (signal) {
+      process.kill(process.pid, signal);
+    } else {
+      process.exit(code ?? 0);
+    }
+  });
+}
 
 function handleOutput(stream: NodeJS.ReadableStream, streamName: "stdout" | "stderr"): void {
   let leftover = "";
@@ -66,31 +125,5 @@ function handleOutput(stream: NodeJS.ReadableStream, streamName: "stdout" | "std
       ingest(formatEntry("be", streamName === "stdout" ? "info" : "error", [leftover]));
       leftover = "";
     }
-  });
-}
-
-handleOutput(child.stdout!, "stdout");
-handleOutput(child.stderr!, "stderr");
-
-// ── Banner ──────────────────────────────────────────────────────────
-console.error(
-  `[logjar] Capturing logs → ${logFile} (port ${actualPort}, window ${maxAgeMs / 1000}s, cap ${maxSizeBytes / 1024}KB)`,
-);
-console.error(`[logjar] Frontend snippet: import 'logjar/client' or add <script> tag`);
-
-// ── Cleanup ─────────────────────────────────────────────────────────
-child.on("exit", (code, signal) => {
-  writer.flushSync();
-  server.close();
-  if (signal) {
-    process.kill(process.pid, signal);
-  } else {
-    process.exit(code ?? 0);
-  }
-});
-
-for (const sig of ["SIGINT", "SIGTERM"] as const) {
-  process.on(sig, () => {
-    child.kill(sig);
   });
 }

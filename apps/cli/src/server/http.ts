@@ -76,6 +76,7 @@ export async function startServer({ port, onEntry }: StartServerOptions): Promis
     res.end();
   });
 
+  // Silent start: the CLI prints its own banner and handles listen errors.
   await new Promise<void>((resolve, reject) => {
     const handleError = (error: Error): void => {
       reject(error);
