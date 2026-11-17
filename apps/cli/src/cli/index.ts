@@ -83,7 +83,8 @@ function runChild(logWriter: LogWriter): void {
   console.error(`[logjar] Frontend snippet: import 'logjar/client' or add <script> tag`);
 
   // ── Cleanup ───────────────────────────────────────────────────────
-  for (const sig of ["SIGINT", "SIGTERM"] as const) {
+  const forwardedSignals = ["SIGINT", "SIGTERM"] as const;
+  for (const sig of forwardedSignals) {
     process.on(sig, () => {
       child.kill(sig);
     });
@@ -98,6 +99,8 @@ function runChild(logWriter: LogWriter): void {
     logWriter.flushSync();
     server.close();
     if (signal) {
+      // Our own forwarding handlers would swallow the signal we re-raise.
+      for (const sig of forwardedSignals) process.removeAllListeners(sig);
       process.kill(process.pid, signal);
     } else {
       process.exit(code ?? 0);
