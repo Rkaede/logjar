@@ -1,7 +1,8 @@
 import { createLogBatcher } from "../../cli/src/client/runtime.ts";
 import {
-  CONTROL_MESSAGE_SOURCE,
-  CONTROL_MESSAGE_TYPE,
+  BRIDGE_READY_EVENT,
+  CAPTURE_OFF_EVENT,
+  CAPTURE_ON_EVENT,
   MESSAGE_DELIVER_BATCH,
   MESSAGE_GET_CONTENT_STATE,
   MESSAGE_SET_TAB_CAPTURE,
@@ -9,12 +10,11 @@ import {
   type ContentStateResponse,
   type ContentToggleMessage,
   type DeliverBatchMessage,
-  type PageControlMessage,
   type PageLogDetail,
 } from "./shared/protocol.ts";
 
-let captureEnabled = false;
-let bridgeInjected = false;
+// Undefined until the background answers.
+let captureEnabled: boolean | undefined;
 
 const batcher = createLogBatcher({
   sourceKind: "extension",
@@ -42,6 +42,11 @@ window.addEventListener(PAGE_EVENT_NAME, (event) => {
   });
 });
 
+// The page bridge may load after the state was first sent.
+window.addEventListener(BRIDGE_READY_EVENT, () => {
+  if (captureEnabled !== undefined) notifyBridge(captureEnabled);
+});
+
 chrome.runtime.onMessage.addListener((message) => {
   const payload = message as ContentToggleMessage | undefined;
   if (!payload || payload.type !== MESSAGE_SET_TAB_CAPTURE) {
@@ -62,42 +67,15 @@ async function bootstrap(): Promise<void> {
 }
 
 function applyCaptureState(enabled: boolean): void {
-  if (enabled) {
-    captureEnabled = true;
-    ensurePageBridge();
-    postControl(true);
-    return;
+  if (!enabled) {
+    // Deliver what was captured while enabled. The transport drops batches
+    // once capture is off, so the flag changes only after the flush.
+    batcher.flush();
   }
-
-  // Deliver what was captured while enabled. The transport drops batches once
-  // capture is off, so the flag changes only after the flush.
-  batcher.flush();
-  captureEnabled = false;
-  if (bridgeInjected) {
-    postControl(false);
-  }
+  captureEnabled = enabled;
+  notifyBridge(enabled);
 }
 
-function ensurePageBridge(): void {
-  if (bridgeInjected) {
-    return;
-  }
-
-  const script = document.createElement("script");
-  script.async = false;
-  script.src = chrome.runtime.getURL("page-bridge.iife.js");
-  (document.head || document.documentElement).appendChild(script);
-  script.remove();
-  bridgeInjected = true;
-}
-
-function postControl(active: boolean): void {
-  window.postMessage(
-    {
-      active,
-      source: CONTROL_MESSAGE_SOURCE,
-      type: CONTROL_MESSAGE_TYPE,
-    } satisfies PageControlMessage,
-    "*",
-  );
+function notifyBridge(enabled: boolean): void {
+  window.dispatchEvent(new CustomEvent(enabled ? CAPTURE_ON_EVENT : CAPTURE_OFF_EVENT));
 }

@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "version_name": "0.0.0-pre.3",
   "description": "Optional Logjar Chrome extension for frontend log capture.",
+  "minimum_chrome_version": "111",
   "permissions": ["storage", "tabs"],
   "host_permissions": ["http://localhost/*", "http://127.0.0.1/*"],
   "background": {
@@ -18,12 +19,12 @@
       "matches": ["<all_urls>"],
       "js": ["content.iife.js"],
       "run_at": "document_start"
-    }
-  ],
-  "web_accessible_resources": [
+    },
     {
-      "resources": ["page-bridge.iife.js"],
-      "matches": ["<all_urls>"]
+      "matches": ["<all_urls>"],
+      "js": ["page-bridge.iife.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ]
 }

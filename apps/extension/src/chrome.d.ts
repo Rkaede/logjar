@@ -21,7 +21,6 @@ interface ChromeStorageArea {
 
 declare const chrome: {
   runtime: {
-    getURL: (path: string) => string;
     onMessage: {
       addListener: (callback: ChromeMessageListener) => void;
     };
