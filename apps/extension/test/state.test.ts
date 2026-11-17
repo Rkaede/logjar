@@ -10,6 +10,8 @@ describe("extension state helpers", () => {
   it("normalizes invalid ports back to the logjar default", () => {
     expect(normalizePort("nope")).toBe(8797);
     expect(normalizePort(0)).toBe(8797);
+    expect(normalizePort(65536)).toBe(8797);
+    expect(normalizePort("9000")).toBe(9000);
   });
 
   it("stores enabled tabs by numeric id", () => {

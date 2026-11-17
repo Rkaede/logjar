@@ -18,7 +18,7 @@ export function normalizePort(value: unknown, fallback = DEFAULT_PORT): number {
         ? Number.parseInt(value, 10)
         : NaN;
 
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+  return Number.isInteger(parsed) && parsed > 0 && parsed <= 65535 ? parsed : fallback;
 }
 
 export function sanitizeEnabledTabs(value: unknown): Record<string, true> {
