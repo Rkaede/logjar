@@ -5,12 +5,14 @@ import {
   CAPTURE_ON_EVENT,
   MESSAGE_DELIVER_BATCH,
   MESSAGE_GET_CONTENT_STATE,
+  MESSAGE_PING,
   MESSAGE_SET_TAB_CAPTURE,
   PAGE_EVENT_NAME,
   type ContentStateResponse,
   type ContentToggleMessage,
   type DeliverBatchMessage,
   type PageLogDetail,
+  type PingMessage,
 } from "./shared/protocol.ts";
 
 // Undefined until the background answers.
@@ -47,13 +49,13 @@ window.addEventListener(BRIDGE_READY_EVENT, () => {
   if (captureEnabled !== undefined) notifyBridge(captureEnabled);
 });
 
-chrome.runtime.onMessage.addListener((message) => {
-  const payload = message as ContentToggleMessage | undefined;
-  if (!payload || payload.type !== MESSAGE_SET_TAB_CAPTURE) {
-    return;
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  const payload = message as ContentToggleMessage | PingMessage | undefined;
+  if (payload?.type === MESSAGE_PING) {
+    sendResponse({ ok: true });
+  } else if (payload?.type === MESSAGE_SET_TAB_CAPTURE) {
+    applyCaptureState(Boolean(payload.enabled));
   }
-
-  applyCaptureState(Boolean(payload.enabled));
 });
 
 void bootstrap();

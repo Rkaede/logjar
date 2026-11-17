@@ -13,6 +13,7 @@ export const MESSAGE_GET_POPUP_STATE = "logjar:get-popup-state";
 export const MESSAGE_SET_PORT = "logjar:set-port";
 export const MESSAGE_SET_TAB_CAPTURE = "logjar:set-tab-capture";
 export const MESSAGE_DELIVER_BATCH = "logjar:deliver-batch";
+export const MESSAGE_PING = "logjar:ping";
 
 export interface PageLogDetail {
   args: unknown[];
@@ -27,9 +28,16 @@ export interface ContentStateResponse {
   port: number;
 }
 
-export interface PopupStateResponse extends ContentStateResponse {
+export interface ServerStatusResponse {
   lastDeliveryError: string | null;
+  port: number;
   reachable: boolean;
+}
+
+export interface PopupStateResponse extends ServerStatusResponse {
+  /** False when the tab's content script does not answer. */
+  capturable: boolean;
+  enabled: boolean;
 }
 
 export interface DeliverBatchMessage {
@@ -51,6 +59,10 @@ export interface SetTabCaptureMessage {
   enabled: boolean;
   tabId: number;
   type: typeof MESSAGE_SET_TAB_CAPTURE;
+}
+
+export interface PingMessage {
+  type: typeof MESSAGE_PING;
 }
 
 export interface ContentToggleMessage {

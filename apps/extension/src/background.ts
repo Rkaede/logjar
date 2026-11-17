@@ -7,12 +7,15 @@ import {
   MESSAGE_DELIVER_BATCH,
   MESSAGE_GET_CONTENT_STATE,
   MESSAGE_GET_POPUP_STATE,
+  MESSAGE_PING,
   MESSAGE_SET_PORT,
   MESSAGE_SET_TAB_CAPTURE,
   type ContentStateResponse,
   type DeliverBatchMessage,
   type GetPopupStateMessage,
+  type PingMessage,
   type PopupStateResponse,
+  type ServerStatusResponse,
   type SetPortMessage,
   type SetTabCaptureMessage,
 } from "./shared/protocol.ts";
@@ -87,6 +90,7 @@ async function getContentState(tabId?: number): Promise<ContentStateResponse> {
 async function getPopupState(tabId?: number): Promise<PopupStateResponse> {
   const state = await readState();
   return {
+    capturable: await pingTab(tabId),
     enabled: isTabEnabled(state.enabledTabs, tabId),
     lastDeliveryError,
     port: state.port,
@@ -94,12 +98,11 @@ async function getPopupState(tabId?: number): Promise<PopupStateResponse> {
   };
 }
 
-async function setPort(port: number | string): Promise<PopupStateResponse> {
+async function setPort(port: number | string): Promise<ServerStatusResponse> {
   const state = await readState();
   const nextPort = normalizePort(port, state.port);
   await chrome.storage.local.set({ [STORAGE_KEYS.port]: nextPort });
   return {
-    enabled: false,
     lastDeliveryError,
     port: nextPort,
     reachable: await probeServer(nextPort),
@@ -162,6 +165,21 @@ async function notifyTab(tabId: number, enabled: boolean): Promise<void> {
     });
   } catch {
     // Ignore unsupported or unloaded tabs.
+  }
+}
+
+/**
+ * Checks that the tab's content script answers. It cannot run on browser pages
+ * or the Web Store, and tabs opened before the extension was installed or
+ * reloaded do not have it until they are reloaded.
+ */
+async function pingTab(tabId?: number): Promise<boolean> {
+  if (typeof tabId !== "number") return false;
+  try {
+    await chrome.tabs.sendMessage(tabId, { type: MESSAGE_PING } satisfies PingMessage);
+    return true;
+  } catch {
+    return false;
   }
 }
 

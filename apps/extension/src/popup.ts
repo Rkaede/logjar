@@ -3,8 +3,10 @@ import {
   MESSAGE_SET_PORT,
   MESSAGE_SET_TAB_CAPTURE,
   type PopupStateResponse,
+  type ServerStatusResponse,
 } from "./shared/protocol.ts";
 
+const captureNote = requireElement<HTMLParagraphElement>("capture-note");
 const captureToggle = requireElement<HTMLInputElement>("capture-toggle");
 const deliveryStatus = requireElement<HTMLParagraphElement>("delivery-status");
 const pageLabel = requireElement<HTMLParagraphElement>("page-label");
@@ -21,7 +23,6 @@ async function bootstrap(): Promise<void> {
   }
 
   pageLabel.textContent = tab.title || tab.url || "Current tab";
-  captureToggle.disabled = false;
 
   const state = (await chrome.runtime.sendMessage({
     tabId: tab.id,
@@ -29,6 +30,8 @@ async function bootstrap(): Promise<void> {
   })) as PopupStateResponse;
 
   renderState(state);
+  captureToggle.disabled = !state.capturable;
+  captureNote.hidden = state.capturable;
 
   captureToggle.addEventListener("change", async () => {
     await chrome.runtime.sendMessage({
@@ -45,14 +48,11 @@ async function bootstrap(): Promise<void> {
   });
 
   portInput.addEventListener("change", async () => {
-    const nextState = (await chrome.runtime.sendMessage({
+    const status = (await chrome.runtime.sendMessage({
       port: portInput.value,
       type: MESSAGE_SET_PORT,
-    })) as PopupStateResponse;
-    renderState({
-      ...nextState,
-      enabled: captureToggle.checked,
-    });
+    })) as ServerStatusResponse;
+    renderServerStatus(status);
   });
 }
 
@@ -63,12 +63,16 @@ async function getActiveTab(): Promise<ChromeTab | undefined> {
 
 function renderState(state: PopupStateResponse): void {
   captureToggle.checked = state.enabled;
-  portInput.value = String(state.port);
-  serverStatus.textContent = state.reachable
-    ? `Server status: reachable on localhost:${state.port}`
-    : `Server status: unreachable on localhost:${state.port}`;
-  deliveryStatus.textContent = state.lastDeliveryError
-    ? `Last delivery error: ${state.lastDeliveryError}`
+  renderServerStatus(state);
+}
+
+function renderServerStatus(status: ServerStatusResponse): void {
+  portInput.value = String(status.port);
+  serverStatus.textContent = status.reachable
+    ? `Server status: reachable on localhost:${status.port}`
+    : `Server status: unreachable on localhost:${status.port}`;
+  deliveryStatus.textContent = status.lastDeliveryError
+    ? `Last delivery error: ${status.lastDeliveryError}`
     : "Last delivery error: none";
 }
 
