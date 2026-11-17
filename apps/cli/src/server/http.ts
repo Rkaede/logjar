@@ -121,6 +121,8 @@ function corsHeaders(
   const base: Record<string, string> = {
     "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
+    // Lets the browser reuse a preflight instead of repeating it every few seconds.
+    "Access-Control-Max-Age": "600",
     ...extra,
   };
   // Wildcard origin is invalid when the browser sends credentialed requests
