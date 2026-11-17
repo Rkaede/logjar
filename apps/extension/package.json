@@ -7,9 +7,7 @@
   "scripts": {
     "build": "vp pack src/background.ts -f iife -d dist && vp pack src/content.ts -f iife -d dist --no-clean && vp pack src/page-bridge.ts -f iife -d dist --no-clean && vp pack src/popup.ts -f iife -d dist --no-clean && node ./scripts/copy-static.mjs",
     "dev": "vp run build",
-    "test": "vp test",
-    "check": "vp check",
-    "prepare": "vp config"
+    "test": "vp test"
   },
   "devDependencies": {
     "typescript": "catalog:",
