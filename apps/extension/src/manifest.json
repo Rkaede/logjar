@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Logjar",
   "version": "0.0.0",
-  "version_name": "0.0.0-pre.3",
+  "version_name": "0.0.0-pre.4",
   "description": "Optional Logjar Chrome extension for frontend log capture.",
   "minimum_chrome_version": "111",
   "permissions": ["activeTab", "storage"],
